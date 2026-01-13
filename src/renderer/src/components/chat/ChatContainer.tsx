@@ -60,6 +60,7 @@ export function ChatContainer({ threadId }: ChatContainerProps): React.JSX.Eleme
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const isAtBottomRef = useRef(true)
 
   const {
     messages: storeMessages,
@@ -198,12 +199,47 @@ export function ChatContainer({ threadId }: ChatContainerProps): React.JSX.Eleme
     return [...storeMessages, ...streamingMsgs]
   }, [storeMessages, stream.messages])
 
-  // Auto-scroll on new messages
+  // Get the actual scrollable viewport element from Radix ScrollArea
+  const getViewport = useCallback(() => {
+    return scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null
+  }, [])
+
+  // Track scroll position to determine if user is at bottom
+  const handleScroll = useCallback(() => {
+    const viewport = getViewport()
+    if (!viewport) return
+
+    const { scrollTop, scrollHeight, clientHeight } = viewport
+    // Consider "at bottom" if within 50px of the bottom
+    const threshold = 50
+    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < threshold
+  }, [getViewport])
+
+  // Attach scroll listener to viewport
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    const viewport = getViewport()
+    if (!viewport) return
+
+    viewport.addEventListener('scroll', handleScroll)
+    return () => viewport.removeEventListener('scroll', handleScroll)
+  }, [getViewport, handleScroll])
+
+  // Auto-scroll on new messages only if already at bottom
+  useEffect(() => {
+    const viewport = getViewport()
+    if (viewport && isAtBottomRef.current) {
+      viewport.scrollTop = viewport.scrollHeight
     }
-  }, [displayMessages, stream.isLoading, threadId])
+  }, [displayMessages, stream.isLoading, getViewport])
+
+  // Always scroll to bottom when switching threads
+  useEffect(() => {
+    const viewport = getViewport()
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight
+      isAtBottomRef.current = true
+    }
+  }, [threadId, getViewport])
 
   // Focus input on mount
   useEffect(() => {

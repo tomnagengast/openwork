@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { ListTodo, FolderTree, GitBranch, ChevronRight, ChevronDown, CheckCircle2, Circle, Clock, XCircle, GripHorizontal, Download, FolderSync, Loader2, Check } from 'lucide-react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { ListTodo, FolderTree, GitBranch, ChevronRight, ChevronDown, CheckCircle2, Circle, Clock, XCircle, GripHorizontal, Download, FolderSync, Loader2, Check, Folder, FolderOpen, File, FileText, FileCode, FileJson, Image, FileType } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 import { Badge } from '@/components/ui/badge'
@@ -544,7 +544,7 @@ function FilesContent() {
         </Button>
       </div>
       
-      {/* File list or empty state */}
+      {/* File tree or empty state */}
       {workspaceFiles.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-4 flex-1">
           <FolderTree className="size-8 mb-2 opacity-50" />
@@ -557,24 +557,258 @@ function FilesContent() {
         </div>
       ) : (
         <div className="py-1 overflow-auto flex-1">
-          {workspaceFiles.map(file => (
-            <div
-              key={file.path}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-background-interactive"
-            >
-              <FolderTree className="size-3.5 text-muted-foreground shrink-0" />
-              <span className="truncate flex-1">{file.path.split('/').pop()}</span>
-              {file.size && (
-                <span className="text-[10px] text-muted-foreground tabular-nums">
-                  {formatSize(file.size)}
-                </span>
-              )}
-            </div>
-          ))}
+          <FileTree files={workspaceFiles} />
         </div>
       )}
     </div>
   )
+}
+
+// ============ File Tree Components ============
+
+interface FileInfo {
+  path: string
+  is_dir?: boolean
+  size?: number
+  modified_at?: string
+}
+
+interface TreeNode {
+  name: string
+  path: string
+  is_dir: boolean
+  size?: number
+  children: TreeNode[]
+}
+
+function buildFileTree(files: FileInfo[]): TreeNode[] {
+  const root: TreeNode[] = []
+  const nodeMap = new Map<string, TreeNode>()
+
+  // Sort files so directories come first, then alphabetically
+  const sortedFiles = [...files].sort((a, b) => {
+    const aIsDir = a.is_dir ?? false
+    const bIsDir = b.is_dir ?? false
+    if (aIsDir && !bIsDir) return -1
+    if (!aIsDir && bIsDir) return 1
+    return a.path.localeCompare(b.path)
+  })
+
+  for (const file of sortedFiles) {
+    // Normalize path - remove leading slash
+    const normalizedPath = file.path.startsWith('/') ? file.path.slice(1) : file.path
+    const parts = normalizedPath.split('/')
+    const fileName = parts[parts.length - 1]
+
+    const node: TreeNode = {
+      name: fileName,
+      path: file.path,
+      is_dir: file.is_dir ?? false,
+      size: file.size,
+      children: []
+    }
+
+    if (parts.length === 1) {
+      // Root level item
+      root.push(node)
+      nodeMap.set(normalizedPath, node)
+    } else {
+      // Nested item - find or create parent directories
+      let currentPath = ''
+      let parentChildren = root
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i]
+        
+        let parentNode = nodeMap.get(currentPath)
+        if (!parentNode) {
+          // Create implicit directory node
+          parentNode = {
+            name: parts[i],
+            path: '/' + currentPath,
+            is_dir: true,
+            children: []
+          }
+          parentChildren.push(parentNode)
+          nodeMap.set(currentPath, parentNode)
+        }
+        parentChildren = parentNode.children
+      }
+
+      // Add node to parent
+      parentChildren.push(node)
+      nodeMap.set(normalizedPath, node)
+    }
+  }
+
+  // Sort children of each node (dirs first, then alphabetically)
+  function sortChildren(nodes: TreeNode[]): void {
+    nodes.sort((a, b) => {
+      if (a.is_dir && !b.is_dir) return -1
+      if (!a.is_dir && b.is_dir) return 1
+      return a.name.localeCompare(b.name)
+    })
+    nodes.forEach(n => sortChildren(n.children))
+  }
+  sortChildren(root)
+
+  return root
+}
+
+function FileTree({ files }: { files: FileInfo[] }) {
+  const tree = useMemo(() => buildFileTree(files), [files])
+  const [expanded, setExpanded] = useState<Set<string>>(() => {
+    // Start with all directories expanded
+    const dirs = new Set<string>()
+    files.forEach(f => {
+      if (f.is_dir ?? false) dirs.add(f.path)
+    })
+    return dirs
+  })
+
+  const toggleExpand = useCallback((path: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }, [])
+
+  return (
+    <div className="select-none">
+      {tree.map(node => (
+        <FileTreeNode 
+          key={node.path} 
+          node={node} 
+          depth={0} 
+          expanded={expanded}
+          onToggle={toggleExpand}
+        />
+      ))}
+    </div>
+  )
+}
+
+function FileTreeNode({ 
+  node, 
+  depth, 
+  expanded, 
+  onToggle 
+}: { 
+  node: TreeNode
+  depth: number
+  expanded: Set<string>
+  onToggle: (path: string) => void
+}) {
+  const isExpanded = expanded.has(node.path)
+  const hasChildren = node.children.length > 0
+  const paddingLeft = 8 + depth * 16
+
+  const handleClick = () => {
+    if (node.is_dir) {
+      onToggle(node.path)
+    }
+  }
+
+  return (
+    <>
+      <div
+        onClick={handleClick}
+        className={cn(
+          "flex items-center gap-1.5 py-1 pr-3 text-xs hover:bg-background-interactive",
+          node.is_dir && "cursor-pointer"
+        )}
+        style={{ paddingLeft }}
+      >
+        {/* Expand/collapse chevron for directories */}
+        {node.is_dir ? (
+          <span className="w-3.5 flex items-center justify-center shrink-0">
+            {hasChildren && (
+              isExpanded 
+                ? <ChevronDown className="size-3 text-muted-foreground" />
+                : <ChevronRight className="size-3 text-muted-foreground" />
+            )}
+          </span>
+        ) : (
+          <span className="w-3.5 shrink-0" />
+        )}
+
+        {/* Icon */}
+        <FileIcon name={node.name} isDir={node.is_dir} isOpen={isExpanded} />
+
+        {/* Name */}
+        <span className="truncate flex-1">{node.name}</span>
+
+        {/* Size for files */}
+        {!node.is_dir && node.size !== undefined && (
+          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+            {formatSize(node.size)}
+          </span>
+        )}
+      </div>
+
+      {/* Children */}
+      {node.is_dir && isExpanded && node.children.map(child => (
+        <FileTreeNode
+          key={child.path}
+          node={child}
+          depth={depth + 1}
+          expanded={expanded}
+          onToggle={onToggle}
+        />
+      ))}
+    </>
+  )
+}
+
+function FileIcon({ name, isDir, isOpen }: { name: string; isDir: boolean; isOpen?: boolean }) {
+  if (isDir) {
+    return isOpen 
+      ? <FolderOpen className="size-3.5 text-amber-500 shrink-0" />
+      : <Folder className="size-3.5 text-amber-500 shrink-0" />
+  }
+
+  // Get file extension
+  const ext = name.includes('.') ? name.split('.').pop()?.toLowerCase() : ''
+
+  // Map extensions to icons and colors
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+      return <FileCode className="size-3.5 text-blue-400 shrink-0" />
+    case 'js':
+    case 'jsx':
+      return <FileCode className="size-3.5 text-yellow-400 shrink-0" />
+    case 'json':
+      return <FileJson className="size-3.5 text-yellow-600 shrink-0" />
+    case 'md':
+    case 'mdx':
+      return <FileText className="size-3.5 text-muted-foreground shrink-0" />
+    case 'py':
+      return <FileCode className="size-3.5 text-green-400 shrink-0" />
+    case 'css':
+    case 'scss':
+    case 'sass':
+      return <FileCode className="size-3.5 text-pink-400 shrink-0" />
+    case 'html':
+      return <FileCode className="size-3.5 text-orange-400 shrink-0" />
+    case 'svg':
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'gif':
+    case 'webp':
+      return <Image className="size-3.5 text-purple-400 shrink-0" />
+    case 'yml':
+    case 'yaml':
+      return <FileType className="size-3.5 text-red-400 shrink-0" />
+    default:
+      return <File className="size-3.5 text-muted-foreground shrink-0" />
+  }
 }
 
 function AgentsContent() {
