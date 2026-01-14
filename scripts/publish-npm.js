@@ -144,12 +144,29 @@ function copyDir(src, dest) {
 }
 
 /**
+ * Create a tar.gz archive (preserves symlinks, unlike npm pack)
+ */
+function createTarGz(sourceDir, destPath, archiveName) {
+  // Use tar command to create archive that preserves symlinks
+  const tarPath = path.join(destPath, `${archiveName}.tar.gz`)
+  const parentDir = path.dirname(sourceDir)
+  const baseName = path.basename(sourceDir)
+
+  execSync(`tar -czhf "${tarPath}" -C "${parentDir}" "${baseName}"`, {
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
+
+  return tarPath
+}
+
+/**
  * Publish a single platform package
  */
 function publishPlatformPackage(version, platformId, config) {
   const npmKey = config.npm.key
   const releaseSubDir = config.electronBuilder.releaseDir
   const appBundle = config.electronBuilder.appBundle
+  const isMacOS = platformId.startsWith('darwin')
 
   log(`\n📦 Publishing @langchain/openwork-${npmKey}...`)
 
@@ -186,9 +203,23 @@ function publishPlatformPackage(version, platformId, config) {
   }
   fs.mkdirSync(binDir, { recursive: true })
 
-  // Copy the app
-  if (appBundle) {
-    // macOS: copy the .app bundle
+  // Copy/package the app
+  if (isMacOS && appBundle) {
+    // macOS: create tar.gz to preserve symlinks (npm resolves symlinks causing 3x size)
+    const appBundleSrc = path.join(sourceDir, appBundle)
+
+    if (!fs.existsSync(appBundleSrc)) {
+      error(`App bundle not found: ${appBundleSrc}`)
+      return false
+    }
+
+    log(`Creating tar.gz of ${appBundleSrc} (preserves symlinks)`)
+    const tarPath = createTarGz(appBundleSrc, binDir, 'openwork')
+    const tarStats = fs.statSync(tarPath)
+    const tarHash = sha256(tarPath)
+    log(`Archive: ${tarPath} (${(tarStats.size / 1024 / 1024).toFixed(1)} MB, sha256: ${tarHash.substring(0, 12)}...)`)
+  } else if (appBundle) {
+    // Non-macOS with app bundle (shouldn't happen, but handle it)
     const appBundleSrc = path.join(sourceDir, appBundle)
     const appBundleDest = path.join(binDir, appBundle)
 
@@ -203,28 +234,28 @@ function publishPlatformPackage(version, platformId, config) {
     // Linux/Windows: copy the entire unpacked directory
     log(`Copying ${sourceDir} -> ${binDir}`)
     copyDir(sourceDir, binDir)
-  }
 
-  // Verify binary exists
-  const binaryPath = path.join(binDir, config.npm.binaryPath)
-  if (!fs.existsSync(binaryPath)) {
-    error(`Binary not found: ${binaryPath}`)
-    return false
-  }
+    // Verify binary exists for non-macOS
+    const binaryPath = path.join(binDir, config.npm.binaryPath)
+    if (!fs.existsSync(binaryPath)) {
+      error(`Binary not found: ${binaryPath}`)
+      return false
+    }
 
-  const stats = fs.statSync(binaryPath)
-  if (stats.size === 0) {
-    error(`Binary is empty: ${binaryPath}`)
-    return false
-  }
+    const stats = fs.statSync(binaryPath)
+    if (stats.size === 0) {
+      error(`Binary is empty: ${binaryPath}`)
+      return false
+    }
 
-  // Set executable permissions on Unix
-  if (platformId.startsWith('darwin') || platformId.startsWith('linux')) {
-    fs.chmodSync(binaryPath, 0o755)
-  }
+    // Set executable permissions on Linux
+    if (platformId.startsWith('linux')) {
+      fs.chmodSync(binaryPath, 0o755)
+    }
 
-  const binaryHash = sha256(binaryPath)
-  log(`Binary: ${binaryPath} (${stats.size} bytes, sha256: ${binaryHash.substring(0, 12)}...)`)
+    const binaryHash = sha256(binaryPath)
+    log(`Binary: ${binaryPath} (${stats.size} bytes, sha256: ${binaryHash.substring(0, 12)}...)`)
+  }
 
   // Update version
   pkg.version = version

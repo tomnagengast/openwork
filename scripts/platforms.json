@@ -9,7 +9,8 @@
       },
       "npm": {
         "key": "darwin-arm64",
-        "binaryPath": "openwork.app/Contents/MacOS/openwork"
+        "binaryPath": "openwork.app/Contents/MacOS/openwork",
+        "note": "Packaged as tar.gz to preserve symlinks; extracted on first run"
       }
     },
     "darwin-x64": {
@@ -19,7 +20,8 @@
       },
       "npm": {
         "key": "darwin-x64",
-        "binaryPath": "openwork.app/Contents/MacOS/openwork"
+        "binaryPath": "openwork.app/Contents/MacOS/openwork",
+        "note": "Packaged as tar.gz to preserve symlinks; extracted on first run"
       }
     },
     "linux-arm64": {
