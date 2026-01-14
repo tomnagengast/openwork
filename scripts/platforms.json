@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Platform configuration for openwork npm packages. Maps platform IDs to electron-builder output directories.",
+  "platforms": {
+    "darwin-arm64": {
+      "electronBuilder": {
+        "releaseDir": "mac-arm64",
+        "appBundle": "openwork.app"
+      },
+      "npm": {
+        "key": "darwin-arm64",
+        "binaryPath": "openwork.app/Contents/MacOS/openwork"
+      }
+    },
+    "darwin-x64": {
+      "electronBuilder": {
+        "releaseDir": "mac",
+        "appBundle": "openwork.app"
+      },
+      "npm": {
+        "key": "darwin-x64",
+        "binaryPath": "openwork.app/Contents/MacOS/openwork"
+      }
+    },
+    "linux-arm64": {
+      "electronBuilder": {
+        "releaseDir": "linux-arm64-unpacked"
+      },
+      "npm": {
+        "key": "linux-arm64",
+        "binaryPath": "openwork"
+      }
+    },
+    "linux-x64": {
+      "electronBuilder": {
+        "releaseDir": "linux-unpacked"
+      },
+      "npm": {
+        "key": "linux-x64",
+        "binaryPath": "openwork"
+      }
+    },
+    "win32-x64": {
+      "electronBuilder": {
+        "releaseDir": "win-unpacked"
+      },
+      "npm": {
+        "key": "win32-x64",
+        "binaryPath": "openwork.exe"
+      }
+    }
+  }
+}

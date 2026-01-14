@@ -5,85 +5,116 @@ on:
     tags:
       - 'v*'
 
+# Ensure only one release runs at a time
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
-  release:
+  # ==========================================================================
+  # Job 1: Validate the release
+  # ==========================================================================
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-prerelease"
+            exit 1
+          fi
+          echo "✅ Version format valid: $VERSION"
+
+  # ==========================================================================
+  # Job 2: Build Electron apps for each platform
+  # ==========================================================================
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: validate
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            platform: mac
+          - os: macos-14
+            platform: darwin-arm64
+            build_cmd: build:mac:arm64
+          - os: macos-13
+            platform: darwin-x64
+            build_cmd: build:mac:x64
           - os: ubuntu-latest
-            platform: linux
+            platform: linux-x64
+            build_cmd: build:linux:x64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+            build_cmd: build:linux:arm64
           - os: windows-latest
-            platform: win
+            platform: win32-x64
+            build_cmd: build:win
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: npm run build
+      - name: Set version in package.json
+        run: |
+          npm version ${{ needs.validate.outputs.version }} --no-git-tag-version --allow-same-version
+          echo "Updated package.json to version ${{ needs.validate.outputs.version }}"
 
-      - name: Package (macOS)
-        if: matrix.platform == 'mac'
-        run: npm run package:mac
+      - name: Build Electron app
+        run: pnpm run ${{ matrix.build_cmd }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package (Linux)
-        if: matrix.platform == 'linux'
-        run: npm run package:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: List build output
+        run: |
+          echo "Release directory contents:"
+          ls -la release/ || true
+        shell: bash
 
-      - name: Package (Windows)
-        if: matrix.platform == 'win'
-        run: npm run package:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts
+      - name: Upload release directory
         uses: actions/upload-artifact@v4
         with:
-          name: openwork-${{ matrix.platform }}
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/*.AppImage
-            release/*.deb
-            release/*.exe
+          name: release-${{ matrix.platform }}
+          path: release/
+          retention-days: 7
+          if-no-files-found: error
 
-  publish:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: artifacts/**/*
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+  # ==========================================================================
+  # Job 3: Publish all npm packages
+  # ==========================================================================
   publish-npm:
-    needs: release
+    name: Publish to npm
+    needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,16 +122,99 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release/
+          pattern: release-*
+          merge-multiple: true
 
-      - name: Build
-        run: npm run build
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find release/ -type d -maxdepth 1 | head -20
+          echo ""
+          echo "Looking for app bundles/binaries:"
+          find release/ -name "openwork*" -type f | head -20
 
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Publish npm packages
+        run: node ./scripts/publish-npm.js ${{ needs.validate.outputs.version }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ==========================================================================
+  # Job 4: Create GitHub Release
+  # ==========================================================================
+  github-release:
+    name: Create GitHub Release
+    needs: [validate, build, publish-npm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: release-*
+          merge-multiple: true
+
+      - name: Collect release files
+        run: |
+          mkdir -p release-files
+          # Copy installer files (dmg, exe, AppImage, deb, zip)
+          find artifacts/ -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.zip" -o -name "*.msi" \) -exec cp {} release-files/ \;
+          echo "Release files:"
+          ls -la release-files/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: openwork v${{ needs.validate.outputs.version }}
+          body: |
+            ## openwork v${{ needs.validate.outputs.version }}
+
+            ### Installation
+
+            **npm (recommended)**
+            ```bash
+            npm install -g openwork
+            openwork
+            ```
+
+            **npx (no install)**
+            ```bash
+            npx openwork
+            ```
+
+            **Homebrew (macOS)**
+            ```bash
+            brew tap langchain-ai/tap
+            brew install --cask openwork
+            ```
+
+            **Direct Download**
+            Download the appropriate installer below for your platform.
+
+            ### Platform Support
+
+            | Platform | npm Package | Direct Download |
+            |----------|-------------|-----------------|
+            | macOS (Apple Silicon) | `@langchain-ai/openwork-darwin-arm64` | `.dmg` |
+            | macOS (Intel) | `@langchain-ai/openwork-darwin-x64` | `.dmg` |
+            | Linux (x64) | `@langchain-ai/openwork-linux-x64` | `.AppImage`, `.deb` |
+            | Linux (ARM64) | `@langchain-ai/openwork-linux-arm64` | `.AppImage`, `.deb` |
+            | Windows (x64) | `@langchain-ai/openwork-win32-x64` | `.exe` |
+
+            ### Links
+
+            - [Documentation](https://github.com/langchain-ai/openwork#readme)
+            - [npm package](https://www.npmjs.com/package/openwork)
+          files: release-files/*
+          draft: false
+          prerelease: ${{ contains(needs.validate.outputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -16,11 +16,18 @@ A tactical agent interface for [deepagentsjs](https://github.com/langchain-ai/de
 
 ## Installation
 
-### Using npx (recommended)
+### Using npm (recommended)
 
 ```bash
+# Install globally
+npm install -g openwork
+openwork
+
+# Or run directly with npx
 npx openwork
 ```
+
+The npm package automatically installs the correct binary for your platform.
 
 ### Using Homebrew (macOS)
 
@@ -33,13 +40,21 @@ brew install --cask openwork
 
 Download the latest release for your platform from the [releases page](https://github.com/langchain-ai/openwork/releases).
 
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | `.dmg` |
+| macOS (Intel) | `.dmg` |
+| Linux (x64) | `.AppImage`, `.deb` |
+| Linux (ARM64) | `.AppImage`, `.deb` |
+| Windows (x64) | `.exe` |
+
 ### From Source
 
 ```bash
 git clone https://github.com/langchain-ai/openwork.git
 cd openwork
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ## Configuration
@@ -105,17 +120,38 @@ openwork is built with:
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server
-npm run dev
+pnpm run dev
 
 # Build for production
-npm run build
+pnpm run build
 
-# Package for distribution
-npm run package
+# Build for specific platform
+pnpm run build:mac        # macOS (current arch)
+pnpm run build:mac:arm64  # macOS Apple Silicon
+pnpm run build:mac:x64    # macOS Intel
+pnpm run build:linux      # Linux (current arch)
+pnpm run build:win        # Windows
 ```
+
+## Distribution
+
+The npm package is published from `distributions/npm/`. Platform-specific binaries are published as separate packages:
+
+| Platform | npm Package |
+|----------|-------------|
+| macOS (Apple Silicon) | `@langchain-ai/openwork-darwin-arm64` |
+| macOS (Intel) | `@langchain-ai/openwork-darwin-x64` |
+| Linux (x64) | `@langchain-ai/openwork-linux-x64` |
+| Linux (ARM64) | `@langchain-ai/openwork-linux-arm64` |
+| Windows (x64) | `@langchain-ai/openwork-win32-x64` |
+
+To publish a new release:
+1. Create a git tag: `git tag v0.2.0`
+2. Push the tag: `git push origin v0.2.0`
+3. GitHub Actions will build all platforms and publish to npm
 
 ## Design System
 

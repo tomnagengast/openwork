@@ -202,42 +202,43 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectThread: async (threadId: string) => {
-    const currentState = get()
-
-    // Save current thread's tab state before switching
-    if (currentState.currentThreadId) {
-      const currentTabState: TabState = {
-        openFiles: currentState.openFiles,
-        activeTab: currentState.activeTab,
-        fileContents: currentState.fileContents
-      }
-      set((state) => ({
-        tabStateByThread: {
-          ...state.tabStateByThread,
-          [currentState.currentThreadId!]: currentTabState
+    // Do all state updates in a single set() to avoid race conditions
+    set((state) => {
+      // Build updated tabStateByThread - save current thread's tab state
+      let updatedTabStateByThread = state.tabStateByThread
+      if (state.currentThreadId && state.currentThreadId !== threadId) {
+        updatedTabStateByThread = {
+          ...updatedTabStateByThread,
+          [state.currentThreadId]: {
+            openFiles: state.openFiles,
+            activeTab: state.activeTab,
+            fileContents: state.fileContents
+          }
         }
-      }))
-    }
+      }
 
-    // Restore the new thread's tab state (or default to empty)
-    const savedTabState = currentState.tabStateByThread[threadId]
-    const newTabState = savedTabState || {
-      openFiles: [],
-      activeTab: 'agent',
-      fileContents: {}
-    }
+      // Restore the new thread's tab state (or default to empty)
+      const savedTabState = updatedTabStateByThread[threadId]
+      const newTabState = savedTabState || {
+        openFiles: [],
+        activeTab: 'agent',
+        fileContents: {}
+      }
 
-    set({
-      currentThreadId: threadId,
-      messages: [],
-      todos: [],
-      workspaceFiles: [],
-      workspacePath: null,
-      subagents: [],
-      // Restore tab state for this thread
-      openFiles: newTabState.openFiles,
-      activeTab: newTabState.activeTab,
-      fileContents: newTabState.fileContents
+      return {
+        currentThreadId: threadId,
+        messages: [],
+        todos: [],
+        workspaceFiles: [],
+        workspacePath: null,
+        subagents: [],
+        // Update tabStateByThread with current thread's state saved
+        tabStateByThread: updatedTabStateByThread,
+        // Restore tab state for this thread
+        openFiles: newTabState.openFiles,
+        activeTab: newTabState.activeTab,
+        fileContents: newTabState.fileContents
+      }
     })
 
     // Load workspace path from thread metadata
