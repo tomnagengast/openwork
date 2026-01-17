@@ -1,7 +1,5 @@
 import { IpcMain, BrowserWindow } from 'electron'
-import { HumanMessage } from '@langchain/core/messages'
-import { Command } from '@langchain/langgraph'
-import { createAgentRuntime } from '../agent/runtime'
+import { createRuntime } from '../agent/runtime-factory'
 import { getThread } from '../db'
 import type { HITLDecision } from '../types'
 
@@ -62,40 +60,18 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           return
         }
 
-        const agent = await createAgentRuntime({ threadId, workspacePath })
-        const humanMessage = new HumanMessage(message)
+        // Use runtime factory to get adapter (currently always deepagents)
+        const runtime = createRuntime('deepagents', { threadId, workspacePath })
 
-        // Stream with both modes:
-        // - 'messages' for real-time token streaming
-        // - 'values' for full state (todos, files, etc.)
-        const stream = await agent.stream(
-          { messages: [humanMessage] },
-          {
-            configurable: { thread_id: threadId },
-            signal: abortController.signal,
-            streamMode: ['messages', 'values'],
-            recursionLimit: 1000
-          }
-        )
-
-        for await (const chunk of stream) {
+        // Stream via adapter - yields { type: 'stream', mode, data } and { type: 'done' }
+        for await (const event of runtime.stream(
+          { threadId, message, workspacePath },
+          abortController.signal
+        )) {
           if (abortController.signal.aborted) break
 
-          // With multiple stream modes, chunks are tuples: [mode, data]
-          const [mode, data] = chunk as [string, unknown]
-
-          // Forward raw stream events - transport layer handles parsing
-          // Serialize to plain objects for IPC (class instances don't transfer)
-          window.webContents.send(channel, {
-            type: 'stream',
-            mode,
-            data: JSON.parse(JSON.stringify(data))
-          })
-        }
-
-        // Send done event (only if not aborted)
-        if (!abortController.signal.aborted) {
-          window.webContents.send(channel, { type: 'done' })
+          // Forward events directly (adapter already serializes data)
+          window.webContents.send(channel, event)
         }
       } catch (error) {
         // Ignore abort-related errors (expected when stream is cancelled)
@@ -124,10 +100,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
     'agent:resume',
     async (
       event,
-      {
-        threadId,
-        command
-      }: { threadId: string; command: { resume?: { decision?: string } } }
+      { threadId, command }: { threadId: string; command: { resume?: { decision?: string } } }
     ) => {
       const channel = `agent:stream:${threadId}`
       const window = BrowserWindow.fromWebContents(event.sender)
@@ -163,33 +136,16 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       activeRuns.set(threadId, abortController)
 
       try {
-        const agent = await createAgentRuntime({ threadId, workspacePath })
-        const config = {
-          configurable: { thread_id: threadId },
-          signal: abortController.signal,
-          streamMode: ['messages', 'values'] as const,
-          recursionLimit: 1000
-        }
+        // Use runtime factory to get adapter
+        const runtime = createRuntime('deepagents', { threadId, workspacePath })
 
-        // Resume from checkpoint by streaming with Command containing the decision
-        // The HITL middleware expects { decisions: [{ type: 'approve' | 'reject' | 'edit' }] }
-        const decisionType = command?.resume?.decision || 'approve'
-        const resumeValue = { decisions: [{ type: decisionType }] }
-        const stream = await agent.stream(new Command({ resume: resumeValue }), config)
-
-        for await (const chunk of stream) {
+        // Resume via adapter
+        for await (const event of runtime.resume(
+          { threadId, workspacePath, command },
+          abortController.signal
+        )) {
           if (abortController.signal.aborted) break
-
-          const [mode, data] = chunk as unknown as [string, unknown]
-          window.webContents.send(channel, {
-            type: 'stream',
-            mode,
-            data: JSON.parse(JSON.stringify(data))
-          })
-        }
-
-        if (!abortController.signal.aborted) {
-          window.webContents.send(channel, { type: 'done' })
+          window.webContents.send(channel, event)
         }
       } catch (error) {
         const isAbortError =
@@ -247,38 +203,17 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
       activeRuns.set(threadId, abortController)
 
       try {
-        const agent = await createAgentRuntime({ threadId, workspacePath })
-        const config = {
-          configurable: { thread_id: threadId },
-          signal: abortController.signal,
-          streamMode: ['messages', 'values'] as const,
-          recursionLimit: 1000
+        // Use runtime factory to get adapter
+        const runtime = createRuntime('deepagents', { threadId, workspacePath })
+
+        // Handle interrupt via adapter
+        for await (const event of runtime.interrupt(
+          { threadId, workspacePath, decision },
+          abortController.signal
+        )) {
+          if (abortController.signal.aborted) break
+          window.webContents.send(channel, event)
         }
-
-        if (decision.type === 'approve') {
-          // Resume execution by invoking with null (continues from checkpoint)
-          const stream = await agent.stream(null, config)
-
-          for await (const chunk of stream) {
-            if (abortController.signal.aborted) break
-
-            const [mode, data] = chunk as unknown as [string, unknown]
-            window.webContents.send(channel, {
-              type: 'stream',
-              mode,
-              data: JSON.parse(JSON.stringify(data))
-            })
-          }
-
-          if (!abortController.signal.aborted) {
-            window.webContents.send(channel, { type: 'done' })
-          }
-        } else if (decision.type === 'reject') {
-          // For reject, we need to send a Command with reject decision
-          // For now, just send done - the agent will see no resumption happened
-          window.webContents.send(channel, { type: 'done' })
-        }
-        // edit case handled similarly to approve with modified args
       } catch (error) {
         const isAbortError =
           error instanceof Error &&
