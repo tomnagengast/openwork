@@ -63,7 +63,7 @@ const PROVIDERS: ProviderConfig[] = [
   }
 ]
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps): React.JSX.Element {
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({})
   const [savedKeys, setSavedKeys] = useState<Record<string, boolean>>({})
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
@@ -79,7 +79,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     }
   }, [open])
 
-  async function loadSettings() {
+  async function loadSettings(): Promise<void> {
     setLoading(true)
     const keys: Record<string, string> = {}
     const saved: Record<string, boolean> = {}
@@ -96,7 +96,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           keys[provider.id] = ''
           saved[provider.id] = false
         }
-      } catch (e) {
+      } catch {
         keys[provider.id] = ''
         saved[provider.id] = false
       }
@@ -115,7 +115,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setLoading(false)
   }
 
-  async function handleRuntimeChange(runtime: RuntimeType) {
+  async function handleRuntimeChange(runtime: RuntimeType): Promise<void> {
     try {
       await window.api.agentRuntime.setDefault(runtime)
       setDefaultRuntime(runtime)
@@ -131,7 +131,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         (p) => p.runtimes.includes(defaultRuntime) || savedKeys[p.id] || apiKeys[p.id]
       )
 
-  async function saveApiKey(providerId: string) {
+  async function saveApiKey(providerId: string): Promise<void> {
     const key = apiKeys[providerId]
     if (!key || key === '••••••••••••••••') return
 
@@ -149,7 +149,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     }
   }
 
-  function handleKeyChange(providerId: string, value: string) {
+  function handleKeyChange(providerId: string, value: string): void {
     // If user starts typing on a masked field, clear it
     if (apiKeys[providerId] === '••••••••••••••••' && value.length > 16) {
       value = value.slice(16)
@@ -158,7 +158,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setSavedKeys((prev) => ({ ...prev, [providerId]: false }))
   }
 
-  function toggleShowKey(providerId: string) {
+  function toggleShowKey(providerId: string): void {
     setShowKeys((prev) => ({ ...prev, [providerId]: !prev[providerId] }))
   }
 
@@ -294,11 +294,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         apiKeys[provider.id] === '••••••••••••••••'
                       }
                     >
-                      {saving[provider.id] ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        'Save'
-                      )}
+                      {saving[provider.id] ? <Loader2 className="size-4 animate-spin" /> : 'Save'}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">

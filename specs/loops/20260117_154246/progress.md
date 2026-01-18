@@ -153,3 +153,20 @@
 - `npm run typecheck` passes
 - `npm run lint` passes (no new errors introduced)
 - `npm run build` succeeds
+
+---
+
+## Phase 4 (cont.): Lint fixes for SettingsDialog
+
+### Changes Made
+
+1. **src/renderer/src/components/settings/SettingsDialog.tsx** - Fixed lint errors:
+   - Added explicit return type `React.JSX.Element` to `SettingsDialog`
+   - Added return type `Promise<void>` to `loadSettings`, `handleRuntimeChange`, `saveApiKey`
+   - Added return type `void` to `handleKeyChange`, `toggleShowKey`
+   - Changed unused catch param `e` to empty `catch {}`
+   - Fixed prettier formatting on ternary (condensed to single line)
+
+### Validation
+- `npx eslint src/renderer/src/components/settings/SettingsDialog.tsx` reports 0 errors
+- `npm run typecheck` passes
