@@ -2,12 +2,13 @@
  * Runtime factory for agent execution.
  *
  * Creates runtime adapters based on the specified runtime type.
- * Supports deepagents and claude-sdk; codex will be added later.
+ * Supports deepagents, claude-sdk, and codex runtimes.
  */
 
 import type { AgentRuntimeAdapter, RuntimeType } from './types'
 import { createDeepagentsAdapter } from './runtimes/deepagents'
 import { createClaudeSdkAdapter } from './runtimes/claude-sdk'
+import { createCodexSdkAdapter } from './runtimes/codex-sdk'
 
 export interface CreateRuntimeOptions {
   threadId: string
@@ -27,8 +28,9 @@ export function createRuntime(type: RuntimeType, _opts: CreateRuntimeOptions): A
   switch (type) {
     case 'claude-sdk':
       return createClaudeSdkAdapter()
-    case 'deepagents':
     case 'codex':
+      return createCodexSdkAdapter()
+    case 'deepagents':
     default:
       return createDeepagentsAdapter()
   }

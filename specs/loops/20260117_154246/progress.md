@@ -63,3 +63,31 @@
 ### Validation
 - `npm run typecheck` passes
 - `npm run lint` passes (no new errors in modified files)
+
+---
+
+## Phase 3: Codex SDK Runtime Adapter
+
+### Changes Made
+
+1. **package.json** - Added dependency:
+   - `@openai/codex-sdk@^0.87.0`
+
+2. **src/main/agent/runtimes/codex-sdk.ts** (new) - Codex SDK adapter:
+   - Implements `AgentRuntimeAdapter` interface
+   - `stream()`: runs Codex SDK, emits token events from `agent_message` items
+   - Captures Codex `thread_id` from `thread.started` event
+   - Persists `codexThreadId` in thread metadata for session resumption
+   - Resumes existing threads using `codex.resumeThread()`
+   - Uses `approvalPolicy: 'on-request'` for HITL (SDK-native, no dialog fallback yet)
+   - `skipGitRepoCheck: true` for workspace flexibility
+   - Falls back to `gpt-5-codex` if model not OpenAI/Codex
+   - `resume()` and `interrupt()` yield error stubs (not fully supported yet)
+
+3. **src/main/agent/runtime-factory.ts** - Wired Codex SDK:
+   - `'codex'` case now returns `createCodexSdkAdapter()`
+   - Updated comment to reflect all three runtimes supported
+
+### Validation
+- `npm run typecheck` passes
+- `npm run lint` passes (no new errors in modified files)
