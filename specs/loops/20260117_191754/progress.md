@@ -85,3 +85,25 @@ Added `src/main/backpressure/validators/typecheck.ts`:
 Verification:
 - `npm run typecheck`: passes
 - `npm run lint`: 0 errors (533 warnings ok)
+
+## Phase 1: LintValidator
+
+**Status**: Completed
+
+Added `src/main/backpressure/validators/lint.ts`:
+
+- Implements `Validator` interface from `types.ts`
+- `name = 'lint'`, `patterns = ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx']`
+- `validate()` filters `changedFiles` to relevant files under `workspacePath`
+- Runs `npx eslint --format json -- ...files` via `execFileNoThrow`
+- Parses ESLint JSON output into `BackpressureError[]`:
+  - `severity`: `error` for severity 2, `warning` for severity 1
+  - `file`, `line`, `column` from ESLint output
+  - `code`: ruleId
+  - `suggestion`: `Auto-fixable with --fix` when fix exists
+- Returns generic error with `raw` output if JSON parsing fails
+- Includes simple `matchesPattern()` for `**/*.ext` style globs (no external dependency)
+
+Verification:
+- `npm run typecheck`: passes
+- `npm run lint`: 0 errors (533 warnings ok)
