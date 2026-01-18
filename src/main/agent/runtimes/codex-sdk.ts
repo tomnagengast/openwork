@@ -85,11 +85,12 @@ export function createCodexSdkAdapter(): AgentRuntimeAdapter {
 
       try {
         // Create Codex client with workspace as working directory
-        // Note: Codex SDK inherits env from process.env by default
+        // Note: When passing env, SDK does NOT inherit process.env and only injects
+        // CODEX_API_KEY when apiKey is provided. Pass apiKey explicitly.
         const codex = new Codex({
+          apiKey: process.env.OPENAI_API_KEY,
           env: {
-            // Pass through essential env vars
-            OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+            // Pass through essential env vars for tool execution
             HOME: process.env.HOME || '',
             PATH: process.env.PATH || ''
           }

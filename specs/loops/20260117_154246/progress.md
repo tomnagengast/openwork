@@ -92,6 +92,11 @@
    - Used `void args` / `void signal` to satisfy both TS6133 and ESLint
    - Formatted `interrupt()` signature to single line for prettier
 
+5. **src/main/agent/runtimes/codex-sdk.ts** - Fixed API key wiring:
+   - Changed from `env: { OPENAI_API_KEY: ... }` to `apiKey: process.env.OPENAI_API_KEY`
+   - The SDK only injects `CODEX_API_KEY` when `apiKey` is explicitly provided
+   - Without this fix, Codex SDK cannot authenticate when custom `env` is passed
+
 ### Validation
 - `npm run typecheck` passes
 - `npm run lint` passes (no new errors in modified files)
