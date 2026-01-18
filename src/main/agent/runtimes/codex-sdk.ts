@@ -5,6 +5,7 @@
  * Streams token events to the renderer and uses Electron dialogs for HITL approvals.
  */
 
+import { dialog } from 'electron'
 import { Codex } from '@openai/codex-sdk'
 import type { ThreadItem, AgentMessageItem, ReasoningItem } from '@openai/codex-sdk'
 import { getThread, updateThread } from '../../db'
@@ -67,6 +68,32 @@ function extractTextFromItem(item: ThreadItem): string | null {
 }
 
 /**
+ * Show a pre-turn Electron dialog to approve/deny tool usage for this Codex turn.
+ *
+ * The Codex SDK's `approvalPolicy: 'on-request'` doesn't work with the TS SDK wrapper
+ * because it writes the prompt to stdin and closes it, so the CLI can't prompt/receive
+ * approvals mid-turn. Instead, we ask upfront and set sandboxMode accordingly.
+ *
+ * Returns true if user allows tools/writes, false for read-only mode.
+ */
+async function showCodexTurnApprovalDialog(): Promise<boolean> {
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Allow', 'Deny'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Codex Tool Permission Request',
+    message: 'Allow Codex to run tools / write to the workspace for this turn?',
+    detail:
+      'If you Allow, Codex can execute commands and modify files.\n' +
+      'If you Deny, Codex will run in read-only mode.',
+    noLink: true
+  })
+
+  return result.response === 0
+}
+
+/**
  * Create a Codex SDK runtime adapter.
  */
 export function createCodexSdkAdapter(): AgentRuntimeAdapter {
@@ -84,6 +111,13 @@ export function createCodexSdkAdapter(): AgentRuntimeAdapter {
       const messageId = `codex-${Date.now()}`
 
       try {
+        // Show pre-turn approval dialog to determine sandbox mode.
+        // The Codex SDK's 'approvalPolicy: on-request' doesn't work with the TS SDK
+        // wrapper (stdin is closed, so CLI can't prompt mid-turn). Instead, we ask
+        // upfront and configure sandboxMode/approvalPolicy based on user choice.
+        const allowTools = await showCodexTurnApprovalDialog()
+        const sandboxMode = allowTools ? 'workspace-write' : 'read-only'
+
         // Create Codex client with workspace as working directory
         // Note: When passing env, SDK does NOT inherit process.env and only injects
         // CODEX_API_KEY when apiKey is provided. Pass apiKey explicitly.
@@ -96,20 +130,22 @@ export function createCodexSdkAdapter(): AgentRuntimeAdapter {
           }
         })
 
-        // Start or resume thread
+        // Start or resume thread with determined sandbox mode.
+        // Use 'approvalPolicy: never' since we've already asked upfront.
         const thread = existingCodexThreadId
           ? codex.resumeThread(existingCodexThreadId, {
               model,
               workingDirectory: workspacePath,
               skipGitRepoCheck: true,
-              // Require approval for destructive actions
-              approvalPolicy: 'on-request'
+              sandboxMode,
+              approvalPolicy: 'never'
             })
           : codex.startThread({
               model,
               workingDirectory: workspacePath,
               skipGitRepoCheck: true,
-              approvalPolicy: 'on-request'
+              sandboxMode,
+              approvalPolicy: 'never'
             })
 
         // Stream the run - runStreamed returns Promise<StreamedTurn>

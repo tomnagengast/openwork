@@ -97,6 +97,13 @@
    - The SDK only injects `CODEX_API_KEY` when `apiKey` is explicitly provided
    - Without this fix, Codex SDK cannot authenticate when custom `env` is passed
 
+6. **src/main/agent/runtimes/codex-sdk.ts** - Implemented pre-turn Electron modal for HITL:
+   - `approvalPolicy: 'on-request'` doesn't work with TS SDK wrapper (stdin closed, CLI can't prompt mid-turn)
+   - Added `showCodexTurnApprovalDialog()`: modal at start of each turn asking "Allow Codex to run tools / write to the workspace?"
+   - If Allow: `sandboxMode: 'workspace-write'`, `approvalPolicy: 'never'`
+   - If Deny: `sandboxMode: 'read-only'`, `approvalPolicy: 'never'`
+   - Default behavior is now non-destructive when user denies
+
 ### Validation
 - `npm run typecheck` passes
 - `npm run lint` passes (no new errors in modified files)
