@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # forward.sh
-# Usage: ./forward.sh spec.md builder 25
+# Usage: ./forward.sh <spec.md|"query with spaces"> [orchestrator|builder] [iterations]
 
 set -euo pipefail
 
@@ -8,8 +8,19 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(git rev-parse --show-toplevel)"
 START=$(date +"%Y%m%d_%H%M%S")
 
-SPEC_MD="${PROJECT_DIR}/${1}"
+INPUT="${1:-}"
 INIT="${2:-orchestrator}" # orchestrator | builder
+
+# Detect if input is a filepath or a query (query contains spaces)
+if [[ "$INPUT" == *" "* ]]; then
+	# Query mode: write query to generated spec file
+	SPEC_MD="${PROJECT_DIR}/specs/loops/${START}/spec.md"
+	mkdir -p "$(dirname "$SPEC_MD")"
+	echo "$INPUT" >"$SPEC_MD"
+else
+	# Filepath mode: use as-is
+	SPEC_MD="${PROJECT_DIR}/${INPUT}"
+fi
 STATUS_MD="${PROJECT_DIR}/specs/loops/${START}/status.md"
 TASK_MD="${PROJECT_DIR}/specs/loops/${START}/tasks/task.md"
 STEP_MD="${PROJECT_DIR}/specs/loops/${START}/steps/step.md"
@@ -29,14 +40,14 @@ Starting loop in ${SCRIPT_DIR} at ${START}:
 - ITERS: ${ITERS}
 "
 
-if [[ -z "${SPEC_MD}" ]]; then
-	echo "Usage: $0 <spec-md> [orchestrator|builder] [iterations]"
+if [[ -z "${INPUT}" ]]; then
+	echo "Usage: $0 <spec.md|\"query with spaces\"> [orchestrator|builder] [iterations]"
 	exit 1
 fi
 
 if [[ "${INIT}" != "orchestrator" && "${INIT}" != "builder" ]]; then
 	echo "Invalid mode: ${INIT}"
-	echo "Usage: $0 <spec-md> [orchestrator|builder] [iterations]"
+	echo "Usage: $0 <spec.md|\"query with spaces\"> [orchestrator|builder] [iterations]"
 	exit 1
 fi
 
