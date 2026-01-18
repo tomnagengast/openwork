@@ -3,6 +3,7 @@ import Store from 'electron-store'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import type { ModelConfig, Provider } from '../types'
+import type { RuntimeType } from '../agent/types'
 import { startWatching, stopWatching } from '../services/workspace-watcher'
 import { getOpenworkDir, getApiKey, setApiKey, deleteApiKey, hasApiKey } from '../storage'
 
@@ -11,6 +12,13 @@ const store = new Store({
   name: 'settings',
   cwd: getOpenworkDir()
 })
+
+// Valid runtime types
+const VALID_RUNTIMES: RuntimeType[] = ['deepagents', 'claude-sdk', 'codex']
+
+function isValidRuntime(value: unknown): value is RuntimeType {
+  return typeof value === 'string' && VALID_RUNTIMES.includes(value as RuntimeType)
+}
 
 // Provider configurations
 const PROVIDERS: Omit<Provider, 'hasApiKey'>[] = [
@@ -501,6 +509,66 @@ export function registerModelHandlers(ipcMain: IpcMain): void {
       }
     }
   )
+
+  // ============================================================================
+  // Agent Runtime Settings
+  // ============================================================================
+
+  // Get global default runtime
+  ipcMain.handle('agentRuntime:getDefault', async () => {
+    const value = store.get('defaultAgentRuntime', 'deepagents')
+    return isValidRuntime(value) ? value : 'deepagents'
+  })
+
+  // Set global default runtime
+  ipcMain.handle('agentRuntime:setDefault', async (_event, runtime: string) => {
+    if (!isValidRuntime(runtime)) {
+      throw new Error(`Invalid runtime: ${runtime}. Must be one of: ${VALID_RUNTIMES.join(', ')}`)
+    }
+    store.set('defaultAgentRuntime', runtime)
+  })
+
+  // Get effective runtime for a thread (thread override > global default)
+  ipcMain.handle('agentRuntime:get', async (_event, threadId: string) => {
+    const { getThread } = await import('../db')
+    const thread = getThread(threadId)
+    const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {}
+
+    // Thread-level override takes precedence
+    if (metadata.agentRuntime && isValidRuntime(metadata.agentRuntime)) {
+      return metadata.agentRuntime
+    }
+
+    // Fall back to global default
+    const globalDefault = store.get('defaultAgentRuntime', 'deepagents')
+    return isValidRuntime(globalDefault) ? globalDefault : 'deepagents'
+  })
+
+  // Set per-thread runtime override (null clears the override)
+  ipcMain.handle(
+    'agentRuntime:set',
+    async (_event, { threadId, runtime }: { threadId: string; runtime: string | null }) => {
+      if (runtime !== null && !isValidRuntime(runtime)) {
+        throw new Error(`Invalid runtime: ${runtime}. Must be one of: ${VALID_RUNTIMES.join(', ')}`)
+      }
+
+      const { getThread, updateThread } = await import('../db')
+      const thread = getThread(threadId)
+      if (!thread) {
+        throw new Error(`Thread not found: ${threadId}`)
+      }
+
+      const metadata = thread.metadata ? JSON.parse(thread.metadata) : {}
+
+      if (runtime === null) {
+        delete metadata.agentRuntime
+      } else {
+        metadata.agentRuntime = runtime
+      }
+
+      updateThread(threadId, { metadata: JSON.stringify(metadata) })
+    }
+  )
 }
 
 // Re-export getApiKey from storage for use in agent runtime
@@ -508,4 +576,9 @@ export { getApiKey } from '../storage'
 
 export function getDefaultModel(): string {
   return store.get('defaultModel', 'claude-sonnet-4-5-20250929') as string
+}
+
+export function getDefaultAgentRuntime(): RuntimeType {
+  const value = store.get('defaultAgentRuntime', 'deepagents')
+  return isValidRuntime(value) ? value : 'deepagents'
 }

@@ -202,6 +202,20 @@ const api = {
         ipcRenderer.removeListener('workspace:files-changed', handler)
       }
     }
+  },
+  agentRuntime: {
+    getDefault: (): Promise<string> => {
+      return ipcRenderer.invoke('agentRuntime:getDefault')
+    },
+    setDefault: (runtime: string): Promise<void> => {
+      return ipcRenderer.invoke('agentRuntime:setDefault', runtime)
+    },
+    get: (threadId: string): Promise<string> => {
+      return ipcRenderer.invoke('agentRuntime:get', threadId)
+    },
+    set: (threadId: string, runtime: string | null): Promise<void> => {
+      return ipcRenderer.invoke('agentRuntime:set', { threadId, runtime })
+    }
   }
 }
 

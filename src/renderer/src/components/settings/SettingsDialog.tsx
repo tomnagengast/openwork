@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Eye, EyeOff, Check, AlertCircle, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Check, AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
 interface SettingsDialogProps {
   open: boolean
@@ -21,26 +22,44 @@ interface ProviderConfig {
   name: string
   envVar: string
   placeholder: string
+  runtimes: string[] // Which runtimes need this provider
 }
+
+type RuntimeType = 'deepagents' | 'claude-sdk' | 'codex'
+
+interface RuntimeOption {
+  id: RuntimeType
+  name: string
+  description: string
+}
+
+const RUNTIME_OPTIONS: RuntimeOption[] = [
+  { id: 'deepagents', name: 'DeepAgents', description: 'LangGraph-based agent runtime' },
+  { id: 'claude-sdk', name: 'Claude SDK', description: 'Anthropic Claude Agent SDK' },
+  { id: 'codex', name: 'Codex', description: 'OpenAI Codex CLI runtime' }
+]
 
 const PROVIDERS: ProviderConfig[] = [
   {
     id: 'anthropic',
     name: 'Anthropic',
     envVar: 'ANTHROPIC_API_KEY',
-    placeholder: 'sk-ant-...'
+    placeholder: 'sk-ant-...',
+    runtimes: ['deepagents', 'claude-sdk']
   },
   {
     id: 'openai',
     name: 'OpenAI',
     envVar: 'OPENAI_API_KEY',
-    placeholder: 'sk-...'
+    placeholder: 'sk-...',
+    runtimes: ['codex']
   },
   {
     id: 'google',
     name: 'Google AI',
     envVar: 'GOOGLE_API_KEY',
-    placeholder: 'AIza...'
+    placeholder: 'AIza...',
+    runtimes: []
   }
 ]
 
@@ -50,19 +69,22 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
+  const [defaultRuntime, setDefaultRuntime] = useState<RuntimeType>('deepagents')
+  const [showAllProviders, setShowAllProviders] = useState(false)
 
   // Load existing settings on mount
   useEffect(() => {
     if (open) {
-      loadApiKeys()
+      loadSettings()
     }
   }, [open])
 
-  async function loadApiKeys() {
+  async function loadSettings() {
     setLoading(true)
     const keys: Record<string, string> = {}
     const saved: Record<string, boolean> = {}
 
+    // Load API keys
     for (const provider of PROVIDERS) {
       try {
         const key = await window.api.models.getApiKey(provider.id)
@@ -80,10 +102,34 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       }
     }
 
+    // Load default runtime
+    try {
+      const runtime = (await window.api.agentRuntime.getDefault()) as RuntimeType
+      setDefaultRuntime(runtime)
+    } catch (e) {
+      console.error('Failed to load default runtime:', e)
+    }
+
     setApiKeys(keys)
     setSavedKeys(saved)
     setLoading(false)
   }
+
+  async function handleRuntimeChange(runtime: RuntimeType) {
+    try {
+      await window.api.agentRuntime.setDefault(runtime)
+      setDefaultRuntime(runtime)
+    } catch (e) {
+      console.error('Failed to set default runtime:', e)
+    }
+  }
+
+  // Filter providers based on selected runtime (unless showing all)
+  const visibleProviders = showAllProviders
+    ? PROVIDERS
+    : PROVIDERS.filter(
+        (p) => p.runtimes.includes(defaultRuntime) || savedKeys[p.id] || apiKeys[p.id]
+      )
 
   async function saveApiKey(providerId: string) {
     const key = apiKeys[providerId]
@@ -118,18 +164,80 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
-            Configure API keys for model providers. Keys are stored securely on your device.
+            Configure agent runtime and API keys. Keys are stored securely on your device.
           </DialogDescription>
         </DialogHeader>
 
         <Separator />
 
-        <div className="space-y-6 py-2">
-          <div className="text-section-header">API KEYS</div>
+        {/* Agent Runtime Section */}
+        <div className="space-y-4 py-2">
+          <div className="text-section-header">AGENT RUNTIME</div>
+          <p className="text-xs text-muted-foreground">
+            Choose the default runtime for new agent conversations.
+          </p>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {RUNTIME_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => handleRuntimeChange(option.id)}
+                  className={cn(
+                    'flex flex-col items-start p-3 rounded-md border text-left transition-colors',
+                    defaultRuntime === option.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:bg-background-secondary'
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 w-full">
+                    <span className="text-sm font-medium">{option.name}</span>
+                    {defaultRuntime === option.id && (
+                      <Check className="size-3.5 text-primary ml-auto" />
+                    )}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">
+                    {option.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* API Keys Section */}
+        <div className="space-y-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="text-section-header">API KEYS</div>
+            <button
+              type="button"
+              onClick={() => setShowAllProviders(!showAllProviders)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showAllProviders ? (
+                <>
+                  <ChevronUp className="size-3" />
+                  Show relevant
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="size-3" />
+                  Show all providers
+                </>
+              )}
+            </button>
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-8">
@@ -137,7 +245,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {PROVIDERS.map((provider) => (
+              {visibleProviders.map((provider) => (
                 <div key={provider.id} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">{provider.name}</label>

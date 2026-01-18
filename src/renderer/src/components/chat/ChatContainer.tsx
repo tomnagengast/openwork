@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store'
 import { useCurrentThread, useThreadStream } from '@/lib/thread-context'
 import { MessageBubble } from './MessageBubble'
 import { ModelSwitcher } from './ModelSwitcher'
+import { RuntimePicker } from './RuntimePicker'
 import { Folder } from 'lucide-react'
 import { WorkspacePicker, selectWorkspaceFolder } from './WorkspacePicker'
 import { ChatTodos } from './ChatTodos'
@@ -396,6 +397,8 @@ export function ChatContainer({ threadId }: ChatContainerProps): React.JSX.Eleme
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ModelSwitcher threadId={threadId} />
+                <div className="w-px h-4 bg-border" />
+                <RuntimePicker threadId={threadId} />
                 <div className="w-px h-4 bg-border" />
                 <WorkspacePicker threadId={threadId} />
               </div>

@@ -1,6 +1,7 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import { createRuntime } from '../agent/runtime-factory'
 import { getThread } from '../db'
+import { getDefaultAgentRuntime } from './models'
 import type { HITLDecision } from '../types'
 import type { RuntimeType } from '../agent/types'
 
@@ -8,14 +9,44 @@ import type { RuntimeType } from '../agent/types'
 const activeRuns = new Map<string, AbortController>()
 
 /**
- * Get runtime type from environment variable for dev/testing.
- * Defaults to 'deepagents' if not set or invalid.
+ * Valid runtime types for validation
  */
-function getRuntimeType(): RuntimeType {
+const VALID_RUNTIMES: RuntimeType[] = ['deepagents', 'claude-sdk', 'codex']
+
+function isValidRuntime(value: unknown): value is RuntimeType {
+  return typeof value === 'string' && VALID_RUNTIMES.includes(value as RuntimeType)
+}
+
+/**
+ * Get effective runtime type for a thread.
+ *
+ * Precedence (highest → lowest):
+ * 1. OPENWORK_AGENT_RUNTIME env var (dev override)
+ * 2. Thread metadata override: metadata.agentRuntime
+ * 3. Global default: defaultAgentRuntime setting
+ * 4. Fallback: 'deepagents'
+ */
+function getRuntimeType(threadId: string): RuntimeType {
+  // 1. Environment variable override (dev/test)
   const envRuntime = process.env.OPENWORK_AGENT_RUNTIME
-  if (envRuntime === 'claude-sdk' || envRuntime === 'codex') {
+  if (envRuntime && isValidRuntime(envRuntime)) {
     return envRuntime
   }
+
+  // 2. Thread metadata override
+  const thread = getThread(threadId)
+  const metadata = thread?.metadata ? JSON.parse(thread.metadata) : {}
+  if (metadata.agentRuntime && isValidRuntime(metadata.agentRuntime)) {
+    return metadata.agentRuntime
+  }
+
+  // 3. Global default setting
+  const globalDefault = getDefaultAgentRuntime()
+  if (isValidRuntime(globalDefault)) {
+    return globalDefault
+  }
+
+  // 4. Fallback
   return 'deepagents'
 }
 
@@ -74,7 +105,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
         }
 
         // Use runtime factory to get adapter
-        const runtime = createRuntime(getRuntimeType(), { threadId, workspacePath })
+        const runtime = createRuntime(getRuntimeType(threadId), { threadId, workspacePath })
 
         // Stream via adapter - yields { type: 'stream', mode, data } and { type: 'done' }
         for await (const event of runtime.stream(
@@ -150,7 +181,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
       try {
         // Use runtime factory to get adapter
-        const runtime = createRuntime(getRuntimeType(), { threadId, workspacePath })
+        const runtime = createRuntime(getRuntimeType(threadId), { threadId, workspacePath })
 
         // Resume via adapter
         for await (const event of runtime.resume(
@@ -217,7 +248,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
       try {
         // Use runtime factory to get adapter
-        const runtime = createRuntime(getRuntimeType(), { threadId, workspacePath })
+        const runtime = createRuntime(getRuntimeType(threadId), { threadId, workspacePath })
 
         // Handle interrupt via adapter
         for await (const event of runtime.interrupt(

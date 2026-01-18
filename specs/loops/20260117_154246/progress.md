@@ -107,3 +107,49 @@
 ### Validation
 - `npm run typecheck` passes
 - `npm run lint` passes (no new errors in modified files)
+
+---
+
+## Phase 4: Runtime Selection UI + Persistence
+
+### Changes Made
+
+1. **src/main/ipc/models.ts** - Added global default runtime setting:
+   - Added `RuntimeType` import and `VALID_RUNTIMES` constant
+   - Added `isValidRuntime()` type guard
+   - IPC handlers: `agentRuntime:getDefault`, `agentRuntime:setDefault`
+   - IPC handlers: `agentRuntime:get` (effective for thread), `agentRuntime:set` (per-thread override)
+   - Exported `getDefaultAgentRuntime()` for use in agent.ts
+   - Stores `defaultAgentRuntime` in electron-store settings
+
+2. **src/main/ipc/agent.ts** - Updated runtime selection logic:
+   - `getRuntimeType(threadId)` now uses precedence:
+     1. `OPENWORK_AGENT_RUNTIME` env var (dev override)
+     2. Thread metadata `agentRuntime` (per-thread override)
+     3. Global `defaultAgentRuntime` setting
+     4. Fallback: `'deepagents'`
+   - All handlers (`invoke`, `resume`, `interrupt`) now pass threadId
+
+3. **src/preload/index.ts** + **src/preload/index.d.ts** - Exposed APIs:
+   - `window.api.agentRuntime.getDefault()`
+   - `window.api.agentRuntime.setDefault(runtime)`
+   - `window.api.agentRuntime.get(threadId)`
+   - `window.api.agentRuntime.set(threadId, runtimeOrNull)`
+
+4. **src/renderer/src/components/chat/RuntimePicker.tsx** (new) - Per-thread picker:
+   - Shows effective runtime for thread with "(override)" indicator
+   - Options: "Use default" (clears override), deepagents, claude-sdk, codex
+   - Loads thread metadata to detect existing override
+
+5. **src/renderer/src/components/chat/ChatContainer.tsx** - Added RuntimePicker:
+   - Positioned between ModelSwitcher and WorkspacePicker
+
+6. **src/renderer/src/components/settings/SettingsDialog.tsx** - Added global default:
+   - "AGENT RUNTIME" section with 3-column grid of runtime options
+   - API key section now shows "Show all providers" toggle
+   - Relevant API keys displayed based on selected runtime
+
+### Validation
+- `npm run typecheck` passes
+- `npm run lint` passes (no new errors introduced)
+- `npm run build` succeeds

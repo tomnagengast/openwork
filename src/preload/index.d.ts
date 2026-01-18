@@ -80,6 +80,12 @@ interface CustomAPI {
       callback: (data: { threadId: string; workspacePath: string }) => void
     ) => () => void
   }
+  agentRuntime: {
+    getDefault: () => Promise<string>
+    setDefault: (runtime: string) => Promise<void>
+    get: (threadId: string) => Promise<string>
+    set: (threadId: string, runtime: string | null) => Promise<void>
+  }
 }
 
 declare global {
