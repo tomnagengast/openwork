@@ -21,7 +21,12 @@ export interface StreamInput {
 
 /** Stream event from runtime adapters - matches current IPC payload shape */
 export type RuntimeStreamEvent =
+  // DeepAgents events
   | { type: 'stream'; mode: 'messages' | 'values'; data: unknown }
+  // Claude SDK token streaming events
+  | { type: 'token'; messageId: string; token: string }
+  // Common events
+  | { type: 'error'; error: string }
   | { type: 'done' }
 
 /** Arguments for resuming from checkpoint */

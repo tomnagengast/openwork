@@ -2,9 +2,22 @@ import { IpcMain, BrowserWindow } from 'electron'
 import { createRuntime } from '../agent/runtime-factory'
 import { getThread } from '../db'
 import type { HITLDecision } from '../types'
+import type { RuntimeType } from '../agent/types'
 
 // Track active runs for cancellation
 const activeRuns = new Map<string, AbortController>()
+
+/**
+ * Get runtime type from environment variable for dev/testing.
+ * Defaults to 'deepagents' if not set or invalid.
+ */
+function getRuntimeType(): RuntimeType {
+  const envRuntime = process.env.OPENWORK_AGENT_RUNTIME
+  if (envRuntime === 'claude-sdk' || envRuntime === 'codex') {
+    return envRuntime
+  }
+  return 'deepagents'
+}
 
 export function registerAgentHandlers(ipcMain: IpcMain): void {
   console.log('[Agent] Registering agent handlers...')
@@ -60,8 +73,8 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
           return
         }
 
-        // Use runtime factory to get adapter (currently always deepagents)
-        const runtime = createRuntime('deepagents', { threadId, workspacePath })
+        // Use runtime factory to get adapter
+        const runtime = createRuntime(getRuntimeType(), { threadId, workspacePath })
 
         // Stream via adapter - yields { type: 'stream', mode, data } and { type: 'done' }
         for await (const event of runtime.stream(
@@ -137,7 +150,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
       try {
         // Use runtime factory to get adapter
-        const runtime = createRuntime('deepagents', { threadId, workspacePath })
+        const runtime = createRuntime(getRuntimeType(), { threadId, workspacePath })
 
         // Resume via adapter
         for await (const event of runtime.resume(
@@ -204,7 +217,7 @@ export function registerAgentHandlers(ipcMain: IpcMain): void {
 
       try {
         // Use runtime factory to get adapter
-        const runtime = createRuntime('deepagents', { threadId, workspacePath })
+        const runtime = createRuntime(getRuntimeType(), { threadId, workspacePath })
 
         // Handle interrupt via adapter
         for await (const event of runtime.interrupt(

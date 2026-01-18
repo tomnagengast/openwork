@@ -29,3 +29,37 @@
 ### Validation
 - `npm run typecheck` passes
 - `npm run lint` passes (no errors in modified files)
+
+---
+
+## Phase 2: Claude Agent SDK Runtime Adapter
+
+### Changes Made
+
+1. **package.json** - Added dependency:
+   - `@anthropic-ai/claude-agent-sdk@^0.2.12`
+
+2. **src/main/agent/types.ts** - Extended `RuntimeStreamEvent`:
+   - Added `{ type: 'token'; messageId: string; token: string }` for Claude SDK streaming
+   - Added `{ type: 'error'; error: string }` as common error event
+
+3. **src/main/agent/runtimes/claude-sdk.ts** (new) - Claude SDK adapter:
+   - Implements `AgentRuntimeAdapter` interface
+   - `stream()`: runs Claude SDK, emits token events, captures session ID
+   - `resume()`: resumes session using stored `claudeSessionId`
+   - `interrupt()`: handles HITL interrupts
+   - Uses Electron `dialog.showMessageBox` for tool approval (minimal HITL)
+   - Persists `claudeSessionId` in thread metadata for session resumption
+   - Falls back to `claude-sonnet-4-5-20250929` if model not Claude
+
+4. **src/main/agent/runtime-factory.ts** - Wired Claude SDK:
+   - `'claude-sdk'` case now returns `createClaudeSdkAdapter()`
+
+5. **src/main/ipc/agent.ts** - Env var runtime selection:
+   - Added `getRuntimeType()` reading `OPENWORK_AGENT_RUNTIME`
+   - Valid values: `deepagents`, `claude-sdk` (default: `deepagents`)
+   - All three handlers (`invoke`, `resume`, `interrupt`) use `getRuntimeType()`
+
+### Validation
+- `npm run typecheck` passes
+- `npm run lint` passes (no new errors in modified files)
