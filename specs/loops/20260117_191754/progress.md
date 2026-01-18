@@ -42,3 +42,26 @@ Fixed 13 ESLint errors (0 errors remaining, warnings ok):
 Verification:
 - `npm run lint`: 0 errors (533 warnings)
 - `npm run typecheck`: passes
+
+## Phase 1: Backpressure core types + execFileNoThrow
+
+**Status**: Completed
+
+Added foundational types and utilities for backpressure system:
+
+1. `src/main/utils/execFileNoThrow.ts` — Safe command execution helper
+   - Uses `execFile` (not `exec`) to avoid shell injection
+   - Never throws; always returns `ExecResult { stdout, stderr, status }`
+   - Handles non-numeric `.code` (e.g. 'ENOENT') by coercing to 1
+   - 10MB maxBuffer, 60s default timeout
+
+2. `src/main/backpressure/types.ts` — Core validator interfaces
+   - `BackpressureError` — Structured error with source, severity, location, message
+   - `ValidatorResult` — passed boolean, errors array, duration
+   - `Validator` — name, patterns, validate(), optional watch()
+
+3. `src/main/backpressure/utils/execFileNoThrow.ts` — Re-export for backpressure module
+
+Verification:
+- `npm run typecheck`: passes
+- `npm run lint`: 0 errors
