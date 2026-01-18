@@ -80,6 +80,7 @@ Added `src/main/backpressure/validators/typecheck.ts`:
   - With location: `src/file.ts(10,5): error TS2345: ...`
   - Without location: `error TS6053: ...`
 - Returns generic error if tsc fails but no parseable output
+- **Fix**: Runs `npx tsc --noEmit --pretty false` without `-p` when no tsconfig exists (previously returned `[]` as a no-op)
 
 Verification:
 - `npm run typecheck`: passes

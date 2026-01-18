@@ -18,12 +18,17 @@ export class TypeCheckValidator implements Validator {
     const allErrors: BackpressureError[] = []
     let anyFailed = false
 
-    for (const configFile of configs) {
-      const { stdout, stderr, status } = await execFileNoThrow(
-        'npx',
-        ['tsc', '--noEmit', '-p', configFile, '--pretty', 'false', '--composite', 'false'],
-        { cwd: workspacePath }
-      )
+    // Build list of tsc invocations: one per config, or one without -p if no configs
+    const invocations: { args: string[]; label: string }[] =
+      configs.length > 0
+        ? configs.map((cfg) => ({
+            args: ['tsc', '--noEmit', '-p', cfg, '--pretty', 'false', '--composite', 'false'],
+            label: cfg
+          }))
+        : [{ args: ['tsc', '--noEmit', '--pretty', 'false'], label: 'default tsc' }]
+
+    for (const { args, label } of invocations) {
+      const { stdout, stderr, status } = await execFileNoThrow('npx', args, { cwd: workspacePath })
 
       const output = stdout + stderr
       const errors = this.parseTscOutput(output, workspacePath)
@@ -35,7 +40,7 @@ export class TypeCheckValidator implements Validator {
           allErrors.push({
             source: 'typecheck',
             severity: 'error',
-            message: `TypeScript check failed for ${configFile}`,
+            message: `TypeScript check failed for ${label}`,
             raw: output.trim() || `tsc exited with code ${status}`
           })
         } else {
