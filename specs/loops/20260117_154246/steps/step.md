@@ -11,3 +11,12 @@ Notes / tips
 - Abort handling: stop yielding promptly on `signal.aborted` and avoid sending `{ type: 'done' }` after abort.
 - Codex SDK HITL: the SDK doesn’t expose a `canUseTool`-style hook; implement a minimal Electron modal before starting a turn to gate “tools enabled” vs “read-only” execution (e.g. choose `sandboxMode: 'workspace-write'` only after user clicks Allow; otherwise `sandboxMode: 'read-only'`).
 - Codex SDK API key wiring: if you pass `env` to `new Codex({ env })`, the SDK will NOT inherit `process.env`, and it only injects `CODEX_API_KEY` when `apiKey` is provided; pass `apiKey: process.env.OPENAI_API_KEY` (or add `CODEX_API_KEY` to the provided env) so Codex can authenticate.
+
+Review feedback (blocking)
+
+- `approvalPolicy: 'on-request'` is not viable in the TS SDK wrapper (it writes the prompt to stdin and closes it, so the CLI can’t prompt/receive approvals mid-turn). This likely hangs or fails when tools are needed.
+- Implement a dev-only Electron modal at the start of `codex` turns:
+  - Ask: “Allow Codex to run tools / write to the workspace for this turn?”
+  - If Allow: set `sandboxMode: 'workspace-write'` and `approvalPolicy: 'never'` (no interactive prompts).
+  - If Deny: set `sandboxMode: 'read-only'` and `approvalPolicy: 'never'`.
+- Ensure the modal appears in the app (task acceptance criteria) and default behavior is non-destructive when the user denies.
