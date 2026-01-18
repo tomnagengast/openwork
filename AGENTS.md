@@ -25,4 +25,4 @@
 
 - Make the plan extremely concise. Sacrifice grammar for the sake of concision.
 - At the end of each plan, give me a list of unresolved questions to answer, if any.
-- CLAUDE: **Always** consult codex to validate plans before returning to the user
+- CLAUDE: **Always** consult codex to validate plans before returning to the user.
