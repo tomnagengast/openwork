@@ -88,6 +88,10 @@
    - `'codex'` case now returns `createCodexSdkAdapter()`
    - Updated comment to reflect all three runtimes supported
 
+4. **src/main/agent/runtimes/codex-sdk.ts** - Fixed unused param errors:
+   - Used `void args` / `void signal` to satisfy both TS6133 and ESLint
+   - Formatted `interrupt()` signature to single line for prettier
+
 ### Validation
 - `npm run typecheck` passes
 - `npm run lint` passes (no new errors in modified files)

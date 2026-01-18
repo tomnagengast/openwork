@@ -160,19 +160,17 @@ export function createCodexSdkAdapter(): AgentRuntimeAdapter {
       }
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async *resume(args: ResumeArgs, signal: AbortSignal): AsyncGenerator<RuntimeStreamEvent> {
+      void args
+      void signal
       // Codex SDK handles session persistence via thread IDs
       // For now, resume is not fully supported - would need to map checkpoint semantics
       yield { type: 'error', error: 'Resume from checkpoint not yet supported for Codex runtime' }
     },
 
-    async *interrupt(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      args: InterruptArgs,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      signal: AbortSignal
-    ): AsyncGenerator<RuntimeStreamEvent> {
+    async *interrupt(args: InterruptArgs, signal: AbortSignal): AsyncGenerator<RuntimeStreamEvent> {
+      void args
+      void signal
       // Codex SDK uses approvalPolicy for HITL rather than interrupt callbacks
       // The modal approval dialog is shown inline during streaming via approvalPolicy
       // This method is called after renderer-side HITL, which doesn't apply here
