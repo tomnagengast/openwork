@@ -7,10 +7,10 @@ import tailwindcss from '@tailwindcss/vite'
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 // Plugin to copy resources to output
-function copyResources() {
+function copyResources(): { name: string; closeBundle: () => void } {
   return {
     name: 'copy-resources',
-    closeBundle() {
+    closeBundle(): void {
       const srcIcon = resolve('resources/icon.png')
       const destDir = resolve('out/resources')
       const destIcon = resolve('out/resources/icon.png')
@@ -29,6 +29,9 @@ export default defineConfig({
   main: {
     // Bundle all dependencies into the main process
     build: {
+      externalizeDeps: {
+        exclude: ['@openai/codex-sdk']
+      },
       lib: {
         entry: 'src/main/index.ts',
         formats: ['cjs']

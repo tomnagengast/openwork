@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Loader2, AlertCircle, FileCode } from 'lucide-react'
 import { useCurrentThread } from '@/lib/thread-context'
 import { getFileType, isBinaryFile } from '@/lib/file-types'
@@ -13,7 +13,7 @@ interface FileViewerProps {
   threadId: string
 }
 
-export function FileViewer({ filePath, threadId }: FileViewerProps) {
+export function FileViewer({ filePath, threadId }: FileViewerProps): React.JSX.Element | null {
   const { fileContents, setFileContents } = useCurrentThread(threadId)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +37,7 @@ export function FileViewer({ filePath, threadId }: FileViewerProps) {
 
   // Load file content (text or binary depending on file type)
   useEffect(() => {
-    async function loadFile() {
+    async function loadFile(): Promise<void> {
       // Skip if already loaded
       if (content !== undefined || binaryContent !== null) {
         return

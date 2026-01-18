@@ -1,4 +1,4 @@
-import {
+import React, {
   createContext,
   useContext,
   useCallback,
@@ -143,7 +143,7 @@ function ThreadStreamHolder({
   onStreamUpdate: (data: StreamData) => void
   onCustomEvent: (data: CustomEventData) => void
   onError: (error: Error) => void
-}) {
+}): null {
   const transport = useMemo(() => new ElectronIPCTransport(), [])
 
   // Use refs to avoid stale closures
@@ -209,7 +209,7 @@ function ThreadStreamHolder({
   return null
 }
 
-export function ThreadProvider({ children }: { children: ReactNode }) {
+export function ThreadProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [threadStates, setThreadStates] = useState<Record<string, ThreadState>>({})
   const [activeThreadIds, setActiveThreadIds] = useState<Set<string>>(new Set())
   const initializedThreadsRef = useRef<Set<string>>(new Set())
@@ -685,7 +685,7 @@ export function useThreadContext(): ThreadContextValue {
 }
 
 // Hook to subscribe to stream data for a thread using useSyncExternalStore
-export function useThreadStream(threadId: string) {
+export function useThreadStream(threadId: string): StreamData {
   const context = useThreadContext()
 
   const subscribe = useCallback(
@@ -699,7 +699,7 @@ export function useThreadStream(threadId: string) {
 }
 
 // Hook to access current thread's state and actions
-export function useCurrentThread(threadId: string) {
+export function useCurrentThread(threadId: string): ThreadState & ThreadActions {
   const context = useThreadContext()
 
   useEffect(() => {
@@ -713,7 +713,7 @@ export function useCurrentThread(threadId: string) {
 }
 
 // Hook for nullable threadId
-export function useThreadState(threadId: string | null) {
+export function useThreadState(threadId: string | null): (ThreadState & ThreadActions) | null {
   const context = useThreadContext()
 
   useEffect(() => {

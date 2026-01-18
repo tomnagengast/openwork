@@ -1,3 +1,4 @@
+import React from 'react'
 import { Bot, X, FileCode, FileText, FileJson, File } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
@@ -8,7 +9,7 @@ interface TabBarProps {
   threadId?: string
 }
 
-export function TabBar({ className, threadId: propThreadId }: TabBarProps) {
+export function TabBar({ className, threadId: propThreadId }: TabBarProps): React.JSX.Element | null {
   const { currentThreadId } = useAppStore()
   const threadId = propThreadId ?? currentThreadId
   const threadState = useThreadState(threadId)
@@ -62,13 +63,13 @@ interface FileTabProps {
   onClose: () => void
 }
 
-function FileTab({ file, isActive, onSelect, onClose }: FileTabProps) {
-  const handleClose = (e: React.MouseEvent) => {
+function FileTab({ file, isActive, onSelect, onClose }: FileTabProps): React.JSX.Element {
+  const handleClose = (e: React.MouseEvent): void => {
     e.stopPropagation()
     onClose()
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent): void => {
     // Middle click to close
     if (e.button === 1) {
       e.preventDefault()
@@ -103,7 +104,7 @@ function FileTab({ file, isActive, onSelect, onClose }: FileTabProps) {
   )
 }
 
-function FileIcon({ name }: { name: string }) {
+function FileIcon({ name }: { name: string }): React.JSX.Element {
   const ext = name.includes('.') ? name.split('.').pop()?.toLowerCase() : ''
 
   switch (ext) {

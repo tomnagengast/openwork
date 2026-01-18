@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ interface ImageViewerProps {
   mimeType: string
 }
 
-export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerProps) {
+export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerProps): React.JSX.Element {
   const [zoom, setZoom] = useState(100)
   const [rotation, setRotation] = useState(0)
   const [isPanning, setIsPanning] = useState(false)
@@ -20,25 +20,25 @@ export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerPr
   const fileName = filePath.split('/').pop() || filePath
   const imageUrl = `data:${mimeType};base64,${base64Content}`
 
-  const handleZoomIn = () => {
+  const handleZoomIn = (): void => {
     setZoom((prev) => Math.min(prev + 25, 400))
   }
 
-  const handleZoomOut = () => {
+  const handleZoomOut = (): void => {
     setZoom((prev) => Math.max(prev - 25, 25))
   }
 
-  const handleResetZoom = () => {
+  const handleResetZoom = (): void => {
     setZoom(100)
     setRotation(0)
     setPanOffset({ x: 0, y: 0 })
   }
 
-  const handleRotate = () => {
+  const handleRotate = (): void => {
     setRotation((prev) => (prev + 90) % 360)
   }
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent): void => {
     if (zoom > 100) {
       setIsPanning(true)
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
@@ -46,7 +46,7 @@ export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerPr
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e: React.MouseEvent): void => {
     if (isPanning && zoom > 100) {
       setPanOffset({
         x: e.clientX - panStart.x,
@@ -55,11 +55,11 @@ export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerPr
     }
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (): void => {
     setIsPanning(false)
   }
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = (): void => {
     setIsPanning(false)
   }
 

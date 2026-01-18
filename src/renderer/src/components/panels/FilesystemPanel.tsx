@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Folder, File, ChevronRight, ChevronDown, FolderOpen, Loader2, RefreshCw } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store'
 import { useThreadState } from '@/lib/thread-context'
 import type { FileInfo } from '@/types'
 
-export function FilesystemPanel() {
+export function FilesystemPanel(): React.JSX.Element {
   const { currentThreadId } = useAppStore()
   const threadState = useThreadState(currentThreadId)
   const workspaceFiles = threadState?.workspaceFiles ?? []
@@ -19,7 +19,7 @@ export function FilesystemPanel() {
   
   // Load workspace path for current thread
   useEffect(() => {
-    async function loadWorkspacePath() {
+    async function loadWorkspacePath(): Promise<void> {
       if (currentThreadId && setWorkspacePath) {
         const path = await window.api.workspace.get(currentThreadId)
         setWorkspacePath(path)
@@ -60,7 +60,7 @@ export function FilesystemPanel() {
   }, [currentThreadId])
   
   // Handle selecting a workspace folder
-  async function handleSelectFolder() {
+  async function handleSelectFolder(): Promise<void> {
     if (!currentThreadId || !setWorkspacePath || !setWorkspaceFiles) return
     
     setLoading(true)
@@ -82,7 +82,7 @@ export function FilesystemPanel() {
   }
   
   // Handle refreshing files from disk
-  async function handleRefresh() {
+  async function handleRefresh(): Promise<void> {
     if (!currentThreadId || !setWorkspaceFiles) return
     
     setLoading(true)
@@ -99,10 +99,10 @@ export function FilesystemPanel() {
   }
 
   // Normalize path to always start with /
-  const normalizePath = (p: string) => p.startsWith('/') ? p : '/' + p
+  const normalizePath = (p: string): string => p.startsWith('/') ? p : '/' + p
 
   // Get parent path, always returns / for root-level items
-  const getParentPath = (p: string) => {
+  const getParentPath = (p: string): string => {
     const normalized = normalizePath(p)
     const lastSlash = normalized.lastIndexOf('/')
     if (lastSlash <= 0) return '/'
@@ -110,7 +110,7 @@ export function FilesystemPanel() {
   }
 
   // Build tree structure with proper path normalization
-  const buildTree = (files: FileInfo[]) => {
+  const buildTree = (files: FileInfo[]): Map<string, FileInfo[]> => {
     const tree: Map<string, FileInfo[]> = new Map()
     const allDirs = new Set<string>()
     
@@ -179,7 +179,7 @@ export function FilesystemPanel() {
 
   const tree = buildTree(workspaceFiles)
 
-  const toggleDir = (path: string) => {
+  const toggleDir = (path: string): void => {
     setExpandedDirs(prev => {
       const next = new Set(prev)
       if (next.has(path)) {
@@ -191,7 +191,7 @@ export function FilesystemPanel() {
     })
   }
 
-  const renderNode = (file: FileInfo, depth: number = 0) => {
+  const renderNode = (file: FileInfo, depth: number = 0): React.JSX.Element => {
     const name = file.path.split('/').pop() || file.path
     const isExpanded = expandedDirs.has(file.path)
     const children = tree.get(file.path) || []

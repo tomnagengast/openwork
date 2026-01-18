@@ -1,3 +1,4 @@
+import React from 'react'
 import { File, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -6,11 +7,11 @@ interface BinaryFileViewerProps {
   size?: number
 }
 
-export function BinaryFileViewer({ filePath, size }: BinaryFileViewerProps) {
+export function BinaryFileViewer({ filePath, size }: BinaryFileViewerProps): React.JSX.Element {
   const fileName = filePath.split('/').pop() || filePath
   const ext = fileName.includes('.') ? fileName.split('.').pop()?.toUpperCase() : 'FILE'
 
-  const formatSize = (bytes?: number) => {
+  const formatSize = (bytes?: number): string => {
     if (!bytes) return 'Unknown size'
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

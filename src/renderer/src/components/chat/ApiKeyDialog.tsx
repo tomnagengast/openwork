@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Eye, EyeOff, Loader2, Trash2 } from 'lucide-react'
 import {
   Dialog,
@@ -24,7 +24,7 @@ const PROVIDER_INFO: Record<string, { placeholder: string; envVar: string }> = {
   google: { placeholder: 'AIza...', envVar: 'GOOGLE_API_KEY' }
 }
 
-export function ApiKeyDialog({ open, onOpenChange, provider }: ApiKeyDialogProps) {
+export function ApiKeyDialog({ open, onOpenChange, provider }: ApiKeyDialogProps): React.JSX.Element | null {
   const [apiKey, setApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -46,7 +46,7 @@ export function ApiKeyDialog({ open, onOpenChange, provider }: ApiKeyDialogProps
 
   const info = PROVIDER_INFO[provider.id] || { placeholder: '...', envVar: '' }
 
-  async function handleSave() {
+  async function handleSave(): Promise<void> {
     if (!apiKey.trim()) return
     if (!provider) return
     
@@ -63,7 +63,7 @@ export function ApiKeyDialog({ open, onOpenChange, provider }: ApiKeyDialogProps
     }
   }
 
-  async function handleDelete() {
+  async function handleDelete(): Promise<void> {
     if (!provider) return
     setDeleting(true)
     try {

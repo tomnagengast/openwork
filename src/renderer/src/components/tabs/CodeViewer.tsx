@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
@@ -74,7 +74,7 @@ function getLanguage(ext: string | undefined): string | null {
   return lang && SUPPORTED_LANGS.has(lang) ? lang : null
 }
 
-export function CodeViewer({ filePath, content }: CodeViewerProps) {
+export function CodeViewer({ filePath, content }: CodeViewerProps): React.JSX.Element {
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
 
   // Get file extension for syntax highlighting
@@ -86,7 +86,7 @@ export function CodeViewer({ filePath, content }: CodeViewerProps) {
   useEffect(() => {
     let cancelled = false
 
-    async function highlight() {
+    async function highlight(): Promise<void> {
       if (content === undefined || language === null) {
         setHighlightedHtml(null)
         return

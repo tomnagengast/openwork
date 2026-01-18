@@ -1,3 +1,4 @@
+import React from 'react'
 import { FileText, ExternalLink } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -7,11 +8,11 @@ interface PDFViewerProps {
   base64Content: string
 }
 
-export function PDFViewer({ filePath, base64Content }: PDFViewerProps) {
+export function PDFViewer({ filePath, base64Content }: PDFViewerProps): React.JSX.Element {
   const fileName = filePath.split('/').pop() || filePath
   const pdfUrl = `data:application/pdf;base64,${base64Content}`
 
-  const handleOpenExternal = () => {
+  const handleOpenExternal = (): void => {
     // Open in system default PDF viewer
     const link = document.createElement('a')
     link.href = pdfUrl

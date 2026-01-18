@@ -12,7 +12,7 @@ import { deleteThreadCheckpoint } from '../storage'
 import { generateTitle } from '../services/title-generator'
 import type { Thread } from '../types'
 
-export function registerThreadHandlers(ipcMain: IpcMain) {
+export function registerThreadHandlers(ipcMain: IpcMain): void {
   // List all threads
   ipcMain.handle('threads:list', async () => {
     const threads = getAllThreads()

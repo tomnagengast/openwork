@@ -1,3 +1,4 @@
+import React from 'react'
 import { useCurrentThread } from '@/lib/thread-context'
 import { TabBar } from './TabBar'
 import { FileViewer } from './FileViewer'
@@ -8,7 +9,7 @@ interface TabbedPanelProps {
   showTabBar?: boolean
 }
 
-export function TabbedPanel({ threadId, showTabBar = true }: TabbedPanelProps) {
+export function TabbedPanel({ threadId, showTabBar = true }: TabbedPanelProps): React.JSX.Element {
   const { activeTab, openFiles } = useCurrentThread(threadId)
 
   // Determine what to render based on active tab
