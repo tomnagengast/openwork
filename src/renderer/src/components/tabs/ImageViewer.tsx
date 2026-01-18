@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { ZoomIn, ZoomOut, Maximize2, RotateCw, Hand } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,13 @@ export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerPr
   }
 
   const handleZoomOut = (): void => {
-    setZoom((prev) => Math.max(prev - 25, 25))
+    setZoom((prev) => {
+      const next = Math.max(prev - 25, 25)
+      if (next <= 100) {
+        setPanOffset({ x: 0, y: 0 })
+      }
+      return next
+    })
   }
 
   const handleResetZoom = (): void => {
@@ -62,13 +68,6 @@ export function ImageViewer({ filePath, base64Content, mimeType }: ImageViewerPr
   const handleMouseLeave = (): void => {
     setIsPanning(false)
   }
-
-  // Reset pan when zoom changes to 100 or less
-  useEffect(() => {
-    if (zoom <= 100) {
-      setPanOffset({ x: 0, y: 0 })
-    }
-  }, [zoom])
 
   const canPan = zoom > 100
 

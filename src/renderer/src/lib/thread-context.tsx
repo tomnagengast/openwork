@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, {
   createContext,
   useContext,
@@ -449,7 +450,8 @@ export function ThreadProvider({ children }: { children: ReactNode }): React.JSX
         closeFile: (path: string) => {
           updateThreadState(threadId, (state) => {
             const newOpenFiles = state.openFiles.filter((f) => f.path !== path)
-            const { [path]: _, ...newFileContents } = state.fileContents
+            const newFileContents = { ...state.fileContents }
+            delete newFileContents[path]
             let newActiveTab = state.activeTab
             if (state.activeTab === path) {
               const closedIndex = state.openFiles.findIndex((f) => f.path === path)
@@ -644,7 +646,8 @@ export function ThreadProvider({ children }: { children: ReactNode }): React.JSX
       return next
     })
     setThreadStates((prev) => {
-      const { [threadId]: _, ...rest } = prev
+      const rest = { ...prev }
+      delete rest[threadId]
       return rest
     })
   }, [])

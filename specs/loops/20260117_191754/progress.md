@@ -25,3 +25,20 @@ Files modified (by error count):
 Verification:
 - `explicit-function-return-type` errors: 0
 - `npm run typecheck`: passes
+
+## Phase 0: Fix remaining ESLint errors
+
+**Status**: Completed
+
+Fixed 13 ESLint errors (0 errors remaining, warnings ok):
+
+1. `storage.ts` — `no-unused-vars`: replaced `[_, v]` with `[, v]`
+2. `ModelSwitcher.tsx` — `set-state-in-effect`: removed effect, derive `selectedProviderId` via `useMemo`
+3. `ImageViewer.tsx` — `set-state-in-effect`: removed effect, reset pan in `handleZoomOut`
+4. `WorkspacePicker.tsx` — `only-export-components` & `no-explicit-any`: moved `selectWorkspaceFolder` to `lib/workspace-utils.ts`; fixed `any[]` → `FileInfo[]`
+5. `badge.tsx` & `button.tsx` — `only-export-components`: stopped exporting unused `*Variants` constants
+6. `thread-context.tsx` — `no-unused-vars` (2×): used `delete` instead of destructuring with `_`; added file-level disable for `react-refresh/only-export-components`
+
+Verification:
+- `npm run lint`: 0 errors (533 warnings)
+- `npm run typecheck`: passes

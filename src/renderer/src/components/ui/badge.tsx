@@ -34,4 +34,4 @@ function Badge({ className, variant, ...props }: BadgeProps): React.JSX.Element 
   )
 }
 
-export { Badge, badgeVariants }
+export { Badge }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { ChevronDown, Check, AlertCircle, Key } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -53,10 +53,11 @@ interface ModelSwitcherProps {
 
 export function ModelSwitcher({ threadId }: ModelSwitcherProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
-  const [selectedProviderId, setSelectedProviderId] = useState<ProviderId | null>(null)
+  // User override for provider selection; null means derive from currentModel
+  const [userSelectedProviderId, setUserSelectedProviderId] = useState<ProviderId | null>(null)
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
   const [apiKeyProvider, setApiKeyProvider] = useState<Provider | null>(null)
-  
+
   const { models, providers, loadModels, loadProviders } = useAppStore()
   const { currentModel, setCurrentModel } = useCurrentThread(threadId)
 
@@ -69,28 +70,24 @@ export function ModelSwitcher({ threadId }: ModelSwitcherProps): React.JSX.Eleme
   // Use fallback providers if none loaded
   const displayProviders = providers.length > 0 ? providers : FALLBACK_PROVIDERS
 
-  // Set initial selected provider based on current model
-  useEffect(() => {
-    if (!selectedProviderId && currentModel) {
+  // Derive effective provider: user override > model's provider > first provider
+  const selectedProviderId = useMemo(() => {
+    if (userSelectedProviderId) return userSelectedProviderId
+    if (currentModel) {
       const model = models.find(m => m.id === currentModel)
-      if (model) {
-        setSelectedProviderId(model.provider)
-      }
+      if (model) return model.provider
     }
-    // Default to first provider if none selected
-    if (!selectedProviderId && displayProviders.length > 0) {
-      setSelectedProviderId(displayProviders[0].id)
-    }
-  }, [currentModel, models, selectedProviderId, displayProviders])
+    return displayProviders[0]?.id ?? null
+  }, [userSelectedProviderId, currentModel, models, displayProviders])
 
   const selectedModel = models.find(m => m.id === currentModel)
-  const filteredModels = selectedProviderId 
+  const filteredModels = selectedProviderId
     ? models.filter(m => m.provider === selectedProviderId)
     : []
   const selectedProvider = displayProviders.find(p => p.id === selectedProviderId)
 
   function handleProviderClick(provider: Provider): void {
-    setSelectedProviderId(provider.id)
+    setUserSelectedProviderId(provider.id)
   }
 
   function handleModelSelect(modelId: string): void {
