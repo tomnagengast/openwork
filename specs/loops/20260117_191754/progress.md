@@ -65,3 +65,22 @@ Added foundational types and utilities for backpressure system:
 Verification:
 - `npm run typecheck`: passes
 - `npm run lint`: 0 errors
+
+## Phase 1: TypeCheckValidator
+
+**Status**: Completed
+
+Added `src/main/backpressure/validators/typecheck.ts`:
+
+- Implements `Validator` interface from `types.ts`
+- `name = 'typecheck'`, `patterns = ['**/*.ts', '**/*.tsx']`
+- `validate()` runs `npx tsc --noEmit` via `execFileNoThrow` (no shell)
+- Detects `tsconfig.node.json`/`tsconfig.web.json`, falls back to `tsconfig.json`
+- Parses tsc output into `BackpressureError[]`:
+  - With location: `src/file.ts(10,5): error TS2345: ...`
+  - Without location: `error TS6053: ...`
+- Returns generic error if tsc fails but no parseable output
+
+Verification:
+- `npm run typecheck`: passes
+- `npm run lint`: 0 errors (533 warnings ok)
